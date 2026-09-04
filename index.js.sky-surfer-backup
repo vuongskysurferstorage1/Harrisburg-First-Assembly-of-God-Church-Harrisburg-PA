@@ -30,13 +30,6 @@
   var autorotateToggleElement = document.querySelector('#autorotateToggle');
   var fullscreenToggleElement = document.querySelector('#fullscreenToggle');
 
-  // SKY SURFER: discourage casual saving/copying of panorama imagery.
-  document.addEventListener('contextmenu', function(event) { event.preventDefault(); }, { capture: true });
-  document.addEventListener('dragstart', function(event) {
-    var tag = event.target && event.target.tagName ? event.target.tagName.toLowerCase() : '';
-    if (tag === 'img' || tag === 'canvas' || tag === 'a') event.preventDefault();
-  }, { capture: true });
-
   // Detect desktop or mobile mode.
   if (window.matchMedia) {
     var setMode = function() {
@@ -85,7 +78,7 @@
       { cubeMapPreviewUrl: urlPrefix + "/" + data.id + "/preview.jpg" });
     var geometry = new Marzipano.CubeGeometry(data.levels);
 
-    var limiter = Marzipano.RectilinearView.limit.traditional((data.faceSize) * 2.5, 100*Math.PI/180, 120*Math.PI/180);
+    var limiter = Marzipano.RectilinearView.limit.traditional(data.faceSize, 100*Math.PI/180, 120*Math.PI/180);
     var view = new Marzipano.RectilinearView(data.initialViewParameters, limiter);
 
     var scene = viewer.createScene({
@@ -147,8 +140,10 @@
   // Set handler for scene list toggle.
   sceneListToggleElement.addEventListener('click', toggleSceneList);
 
-  // SKY SURFER: start with the scene list closed.
-  hideSceneList();
+  // Start with the scene list open on desktop.
+  if (!document.body.classList.contains('mobile')) {
+    showSceneList();
+  }
 
   // Set handler for scene switch.
   scenes.forEach(function(scene) {
@@ -249,15 +244,6 @@
     }
   }
 
-  // SKY_SURFER_PREVIEW_ENHANCER_V33
-  // Touch behavior: tap away from a link hotspot to close any open destination preview.
-  document.addEventListener('click', function() {
-    var openPreviews = document.querySelectorAll('.link-hotspot.preview-visible');
-    for (var i = 0; i < openPreviews.length; i++) {
-      openPreviews[i].classList.remove('preview-visible');
-    }
-  });
-
   function createLinkHotspotElement(hotspot) {
 
     // Create wrapper element to hold icon and tooltip.
@@ -277,27 +263,8 @@
       icon.style[property] = 'rotate(' + hotspot.rotation + 'rad)';
     }
 
-    // Desktop: click navigates normally.
-    // Phone/tablet: first tap shows the destination preview; second tap navigates.
-    wrapper.addEventListener('click', function(event) {
-      var touchLike = document.body.classList.contains('touch') ||
-                      document.body.classList.contains('mobile') ||
-                      (window.matchMedia && window.matchMedia('(hover: none), (pointer: coarse)').matches);
-
-      if (touchLike) {
-        event.preventDefault();
-        event.stopPropagation();
-
-        if (!wrapper.classList.contains('preview-visible')) {
-          var openPreviews = document.querySelectorAll('.link-hotspot.preview-visible');
-          for (var i = 0; i < openPreviews.length; i++) {
-            openPreviews[i].classList.remove('preview-visible');
-          }
-          wrapper.classList.add('preview-visible');
-          return;
-        }
-      }
-
+    // Add click event handler.
+    wrapper.addEventListener('click', function() {
       switchScene(findSceneById(hotspot.target));
     });
 
@@ -305,24 +272,11 @@
     // This prevents the view control logic from interfering with the hotspot.
     stopTouchAndScrollEventPropagation(wrapper);
 
-    // Create destination preview tooltip.
+    // Create tooltip element.
     var tooltip = document.createElement('div');
     tooltip.classList.add('hotspot-tooltip');
     tooltip.classList.add('link-hotspot-tooltip');
-    tooltip.classList.add('scene-preview-tooltip');
-
-    var targetScene = findSceneDataById(hotspot.target);
-
-    var previewImage = document.createElement('img');
-    previewImage.classList.add('scene-preview-image');
-    previewImage.src = 'thumbnails/' + hotspot.target + '.jpg';
-    previewImage.alt = targetScene.name;
-    var previewTitle = document.createElement('div');
-    previewTitle.classList.add('scene-preview-title');
-    previewTitle.innerHTML = targetScene.name;
-
-    tooltip.appendChild(previewImage);
-    tooltip.appendChild(previewTitle);
+    tooltip.innerHTML = findSceneDataById(hotspot.target).name;
 
     wrapper.appendChild(icon);
     wrapper.appendChild(tooltip);
